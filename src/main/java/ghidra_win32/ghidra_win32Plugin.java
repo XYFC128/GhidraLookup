@@ -17,20 +17,29 @@ package ghidra_win32;
 
 import java.awt.BorderLayout;
 
+
 import javax.swing.*;
 
 import docking.ActionContext;
 import docking.ComponentProvider;
 import docking.action.DockingAction;
 import docking.action.ToolBarData;
+import docking.widgets.fieldpanel.LayoutModel;
+import docking.widgets.fieldpanel.support.FieldLocation;
 import ghidra.app.ExamplesPluginPackage;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
+import ghidra.app.decompiler.*;
 import ghidra.framework.plugintool.*;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.util.HelpLocation;
 import ghidra.util.Msg;
 import resources.Icons;
+
+import ghidra.program.model.listing.*;
+import ghidra.program.util.ProgramLocation;
+import ghidra.program.util.ProgramSelection;
+import ghidra.sleigh.grammar.SleighParser.contextblock_return;
 
 /**
  * TODO: Provide class-level documentation that describes what this plugin does.
@@ -72,12 +81,25 @@ public class ghidra_win32Plugin extends ProgramPlugin {
 
 		// TODO: Acquire services if necessary
 	}
+	
+	@Override
+	protected void locationChanged(ProgramLocation loc) {
+		provider.locationChanged(currentProgram,loc);
+		if (loc != null) {
+			String locValue = loc.toString();
+			String[] tokens = locValue.split("=");
+			String token = tokens[tokens.length-1].strip();
+			System.out.println(token);
+		}
+	}
 
 	// TODO: If provider is desired, it is recommended to move it to its own file
 	private static class MyProvider extends ComponentProvider {
 
 		private JPanel panel;
 		private DockingAction action;
+		private ProgramLocation currentLocation;
+		private Program currentProgram;
 
 		public MyProvider(Plugin plugin, String owner) {
 			super(plugin.getTool(), owner, owner);
@@ -99,7 +121,7 @@ public class ghidra_win32Plugin extends ProgramPlugin {
 			action = new DockingAction("My Action", getName()) {
 				@Override
 				public void actionPerformed(ActionContext context) {
-					Msg.showInfo(getClass(), panel, "Custom Action", "Hello!");
+					
 				}
 			};
 			action.setToolBarData(new ToolBarData(Icons.ADD_ICON, null));
@@ -112,5 +134,11 @@ public class ghidra_win32Plugin extends ProgramPlugin {
 		public JComponent getComponent() {
 			return panel;
 		}
+		
+		private void locationChanged(Program program, ProgramLocation loc) {
+			currentLocation = loc;
+			currentProgram = program;
+		}
+	
 	}
 }
