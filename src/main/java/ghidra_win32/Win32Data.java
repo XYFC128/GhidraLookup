@@ -98,6 +98,25 @@ public class Win32Data {
 		}
 	}
 	
+	public ArrayList<String> getFunctionList() {
+		ArrayList<String> all_funcs = new ArrayList<>();
+		for(Function f : m_functions.values()) {
+			all_funcs.add(f.name);
+		}
+		return all_funcs;
+	}
+	
+	public ArrayList<String> getFunctionList(String prefix) {
+		prefix = prefix.toLowerCase();
+		ArrayList<String> all_funcs = new ArrayList<>();
+		for(Function f : m_functions.values()) {
+			String name = f.name.toLowerCase();
+			if(name.startsWith(prefix))
+				all_funcs.add(f.name);
+		}
+		return all_funcs;
+	}
+	
 	public Boolean contains(String func_name) {
 		return m_functions.containsKey(func_name);
 	}
