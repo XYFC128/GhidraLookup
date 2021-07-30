@@ -1,19 +1,33 @@
 #/usr/bin/env python3
 import requests
 from bs4 import BeautifulSoup
+from bs4 import element
 import json
 
 domain = "https://docs.microsoft.com"
 
 paths = {
-	"shellapi" : "/en-us/windows/win32/api/shellapi/",
-	"winuser"  : "/en-us/windows/win32/api/winuser/",
+	# "shellapi" : "/en-us/windows/win32/api/shellapi/",
+	# "winuser"  : "/en-us/windows/win32/api/winuser/",
+	# "heapapi"  : "/en-us/windows/win32/api/heapapi/",
+	"processthreadsapi" : "/en-us/windows/win32/api/processthreadsapi/" 
 }
 
 data = {
 	"functions" : [
 	]
 }
+
+def sibling_tag(i):
+	i = i.next_sibling
+	while i and not isinstance(i, element.Tag):
+		i = i.next_sibling
+	return i
+
+def sibling_p(i):
+	while i.name != "p":
+		i = sibling_tag(i)
+	return i
 
 def request_site(site):
 	req = requests.get(site)
@@ -55,8 +69,6 @@ def fetch_function(site, f_name):
 			f_ret_type = i.text.replace("Type: ", "").strip()
 			print("function return value: {}".format(f_ret_type))
 			func_data["return_type"] = f_ret_type
-		else:
-			func_data["return_type"] = "" # found in syntax
 
 		# parse function description
 		i = m.find("h1").find_next_sibling("p")
@@ -69,30 +81,49 @@ def fetch_function(site, f_name):
 		if not tmp:  # function has no parameters
 			data["functions"].append(func_data)
 			return
-		func_data["parameters"] = []
 		i = tmp.find_next_sibling("p")
-		# a parameter is defined in 3 paragraphs
 		while i and i.find("code"):
 			param_data = {
 				"name" : "",
 				"type" : "",
-				"description" : ""
+				"description" : "",
+				"possible_constants" : [] 
 			}
 			p_name = i.text.strip()
 			print("  param name: {}".format(p_name))
 			param_data["name"] = p_name
-			i = i.find_next_sibling("p")
-			if i and i.text.startswith("Type:"):  # sometimes the 2nd paragraph is the type
+			i = sibling_tag(i)
+			if i and i.name == "p" and i.text.startswith("Type:"):  # sometimes the 2nd paragraph is the type
 				p_type = i.text.replace("Type: ", "").strip()
 				print("  param type: {}".format(p_type))
 				param_data["type"] = p_type
-				i = i.find_next_sibling("p")
-			# parse parameter description
-			p_desc = i.text.strip()
+				i = sibling_tag(i)
+			# parse parameter description and their possible constants
+			p_desc = ""
+			p_constants = ""
+			while i and (i.name == "p" or i.name == "table") and not i.find("code"):
+				if i.name == "p":  # append description
+					p_desc += "\n" + i.text.strip()
+				elif i.name == "table" and i.tr.th.text.startswith("Value"):  # append possible constants
+					constants = i.find_all("tr")[1:]
+					for constant in constants:
+						dt = constant.td.find_all("dt")
+						if not dt: # no value for this constant
+							c_name = constant.td.text
+							c_value = -1
+						elif len(dt) == 1:
+							c_name = dt[0].text
+							c_value = -1
+						elif len(dt) == 2: # no value for this constant
+							c_name = dt[0].text
+							c_value = int(dt[1].text.replace("L", "").replace("U", ""), 16) if dt[1].text.startswith("0x") else -1
+						print("{} : {}".format(c_name, c_value))
+						param_data["possible_constants"].append({c_name : c_value})
+				i = sibling_tag(i)
+
 			print("  param desc: {}\n".format(p_desc))
 			param_data["description"] = p_desc
 			func_data["parameters"].append(param_data)
-			i = i.find_next_sibling("p")
 		data["functions"].append(func_data)
 	except AttributeError:
 		function_limit = 0
@@ -100,10 +131,14 @@ def fetch_function(site, f_name):
 		return
 
 def main():
-	# tests
+	# test fetches
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createsyntheticpointerdevice', "CreateSyntheticPointerDevice")
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxa', 'MessageBoxA')
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-wvsprintfa', 'wvsprintfA')
+	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsa', 'ChangeDisplaySettingsA')
+	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-deferwindowpos', 'DeferWindowPos')
+	# with open("./data/test.json", "w") as f:
+	# 	f.write(json.dumps(data))
 	# return
 	for file, path in paths.items():
 		soup = request_site(domain + path)
