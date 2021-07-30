@@ -56,7 +56,7 @@ public class Win32Data {
 	}
 	
 	private void loadData() {
-		Path file = Paths.get("./data/data.json");
+		Path file = Paths.get("./data/winuser.json");
 		byte[] fileArray = null;
 		try {
 		    fileArray = Files.readAllBytes(file);
