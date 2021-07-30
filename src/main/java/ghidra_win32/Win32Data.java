@@ -8,24 +8,37 @@ import org.json.*;
 
 public class Win32Data {
 	
+	// a possible constant used in a function parameter
+	public class Constant {
+		public String name;
+		public Integer value;
+		
+		Constant(String _name, Integer _value) {
+			name = _name;
+			value = _value;
+		}
+	}
+	
 	private class Parameter {
 		String name;
 		String type;
 		String description;
-		ArrayList<String> possible_constants;
+		ArrayList<Constant> possible_constants; // ArrayList<Pair<String, Integer>> doesn't work
 		
 		Parameter(String _name, String _type, String _des) {
-			possible_constants = new ArrayList<String>();
+			possible_constants = new ArrayList<Constant>();
 			name = _name;
 			type = _type;
 			description = _des;
 		}
 		
-		public void addPC(String pc_name) {
-			possible_constants.add(pc_name);
+		public void addPC(String pc_name, Integer pc_value) {
+			Constant pc = new Constant(pc_name, pc_value);
+			possible_constants.add(pc);
 		}
 	}
 	
+	// a Win32 API function
 	private class Function {
 		String name;
 		String return_type;
@@ -54,6 +67,8 @@ public class Win32Data {
 		
 		loadData("./data/winuser.json");
 		loadData("./data/shellapi.json");
+		loadData("./data/heapapi.json");
+		loadData("./data/processthreadsapi.json");
 	}
 	
 	private void loadData(String file_name) {
@@ -85,17 +100,20 @@ public class Win32Data {
 		    	String par_des = par.getString("description");
 		    	Parameter p = new Parameter(par_name, par_type, par_des);
 		    	
-		    	/*
+		    	// load possible constants
 		    	JSONArray pcs = par.getJSONArray("possible_constants");
 		    	for(int i = 0; i < pcs.length(); i++) {
-		    		p.addPC(pcs.getString(i));
+		    		String constant_name = pcs.getJSONArray(i).getString(0); 
+		    		Integer constant_value = pcs.getJSONArray(i).getInt(1);
+		    		p.addPC(constant_name, constant_value);
 		    	}
-		    	*/
+
 		    	
 		    	f.addParameter(p);
 		    }
 		    m_functions.put(f.name, f);
 		}
+		System.out.println("[Ghidra Win32Data] Loaded json file: " + file);
 	}
 	
 	public ArrayList<String> getFunctionList() {
@@ -180,20 +198,16 @@ public class Win32Data {
 		return null;
 	}
 	
-	public ArrayList<String> getParameterReplacements(String func_name, String par_name) {
+	public ArrayList<Constant> getParameterReplacements(String func_name, String par_name) {
 		if(!contains(func_name))
 			return null;
-		
-		ArrayList<String> replacements = new ArrayList<>();
 		
 		ArrayList<Parameter> pars = m_functions.get(func_name).parameters;
 		for(int i = 0; i < pars.size(); i++) {
 			if(pars.get(i).name.equals(par_name)) {
-				for(int j = 0; j < pars.get(i).possible_constants.size(); i++) {
-					replacements.add(pars.get(i).possible_constants.get(j));
-				}
+				return pars.get(i).possible_constants;
 			}
 		}
-		return replacements;
+		return null;
 	}
 }

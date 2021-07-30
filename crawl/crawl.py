@@ -7,9 +7,9 @@ import json
 domain = "https://docs.microsoft.com"
 
 paths = {
-	# "shellapi" : "/en-us/windows/win32/api/shellapi/",
-	# "winuser"  : "/en-us/windows/win32/api/winuser/",
-	# "heapapi"  : "/en-us/windows/win32/api/heapapi/",
+	"shellapi" : "/en-us/windows/win32/api/shellapi/",
+	"winuser"  : "/en-us/windows/win32/api/winuser/",
+	"heapapi"  : "/en-us/windows/win32/api/heapapi/",
 	"processthreadsapi" : "/en-us/windows/win32/api/processthreadsapi/" 
 }
 
@@ -118,7 +118,7 @@ def fetch_function(site, f_name):
 							c_name = dt[0].text
 							c_value = int(dt[1].text.replace("L", "").replace("U", ""), 16) if dt[1].text.startswith("0x") else -1
 						print("{} : {}".format(c_name, c_value))
-						param_data["possible_constants"].append({c_name : c_value})
+						param_data["possible_constants"].append([c_name, c_value])
 				i = sibling_tag(i)
 
 			print("  param desc: {}\n".format(p_desc))
