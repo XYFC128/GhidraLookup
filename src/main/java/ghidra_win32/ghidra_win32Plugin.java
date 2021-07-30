@@ -62,7 +62,7 @@ import ghidra.util.HelpLocation;
 //@formatter:on
 public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProvider {
 
-	MyProvider provider;
+	UIProvider provider;
 	// data
 	String cur_function_name;
 
@@ -79,7 +79,7 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		
 		// TODO: Customize provider (or remove if a provider is not desired)
 		String pluginName = getName();
-		provider = new MyProvider(this, pluginName);
+		provider = new UIProvider(this, pluginName);
 
 		// TODO: Customize help (or remove if help is not desired)
 		String topicName = this.getClass().getPackage().getName();
@@ -127,63 +127,5 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		provider.setVisible(true);
 	}
 
-	// TODO: If provider is desired, it is recommended to move it to its own file
-	private static class MyProvider extends ComponentProvider {
 
-		private JPanel panel = new JPanel();
-		private DockingAction action;
-		private ProgramLocation currentLocation;
-		private Program currentProgram;
-		private JButton button;
-
-		public MyProvider(Plugin plugin, String owner) {
-			super(plugin.getTool(), owner, owner);
-			panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-			buildPanel();
-			createActions();
-		}
-
-		// Customize GUI
-		private void buildPanel() {
-			JPanel searchPanel = new JPanel();
-			searchPanel.setLayout(new BoxLayout(searchPanel, BoxLayout.LINE_AXIS));
-			JTextField findTextField = new JTextField(30);
-			searchPanel.add(findTextField);	
-			button = new JButton("Search");
-			button.addActionListener(new java.awt.event.ActionListener(){
-				@Override
-				public void actionPerformed(ActionEvent e) {
-					
-				}
-			      
-			 });
-			searchPanel.add(button);
-			
-			JPanel resultPanel = new JPanel();
-			resultPanel.setLayout(new BoxLayout(resultPanel, BoxLayout.LINE_AXIS));
-			JTextArea result = new JTextArea(10,40);
-			resultPanel.add(result);
-			
-			panel.add(searchPanel);
-			panel.add(resultPanel);
-			
-			setVisible(true);
-		}
-
-		// TODO: Customize actions
-		private void createActions() {
-			
-		}
-
-		@Override
-		public JComponent getComponent() {
-			return panel;
-		}
-		
-		private void locationChanged(Program program, ProgramLocation loc) {
-			currentLocation = loc;
-			currentProgram = program;
-		}
-	
-	}
 }
