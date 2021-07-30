@@ -73,7 +73,11 @@ def fetch_function(site, f_name):
 		i = tmp.find_next_sibling("p")
 		# a parameter is defined in 3 paragraphs
 		while i and i.find("code"):
-			param_data = {}
+			param_data = {
+				"name" : "",
+				"type" : "",
+				"description" : ""
+			}
 			p_name = i.text.strip()
 			print("  param name: {}".format(p_name))
 			param_data["name"] = p_name
