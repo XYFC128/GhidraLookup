@@ -84,10 +84,12 @@ public class Win32Data {
 		    	String par_des = par.getString("description");
 		    	Parameter p = new Parameter(par_name, par_type, par_des);
 		    	
+		    	/*
 		    	JSONArray pcs = par.getJSONArray("possible_constants");
 		    	for(int i = 0; i < pcs.length(); i++) {
 		    		p.addPC(pcs.getString(i));
 		    	}
+		    	*/
 		    	
 		    	f.addParameter(p);
 		    }
