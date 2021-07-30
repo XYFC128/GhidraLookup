@@ -15,22 +15,25 @@
  */
 package ghidra_win32;
 
-import static java.nio.file.StandardOpenOption.*;
-import java.nio.file.*;
-import java.util.Iterator;
-import java.io.*;
+import java.math.BigInteger;
+import java.util.*;
 
-import org.json.*;
+import org.python.icu.impl.duration.impl.DataRecord.EMilliSupport;
 
+import ghidra.app.emulator.EmulatorHelper;
+import ghidra.app.plugin.core.analysis.ConstantPropagationContextEvaluator;
 import ghidra.app.services.AbstractAnalyzer;
 import ghidra.app.services.AnalyzerType;
 import ghidra.app.util.importer.MessageLog;
+import ghidra.app.util.opinion.PeLoader;
 import ghidra.framework.options.Options;
+import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSetView;
-import ghidra.program.model.listing.Function;
-import ghidra.program.model.listing.FunctionIterator;
-import ghidra.program.model.listing.FunctionManager;
-import ghidra.program.model.listing.Program;
+import ghidra.program.model.lang.Register;
+import ghidra.program.model.listing.*;
+import ghidra.program.model.symbol.*;
+import ghidra.program.util.*;
+import ghidra.program.util.SymbolicPropogator.Value;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.task.TaskMonitor;
 
@@ -38,13 +41,17 @@ import ghidra.util.task.TaskMonitor;
  * TODO: Provide class-level documentation that describes what this analyzer does.
  */
 public class ghidra_win32Analyzer extends AbstractAnalyzer {
+	
+	private Win32Data m_database;
+	private Program m_program;
+	private TaskMonitor m_monitor;
+	
 
 	public ghidra_win32Analyzer() {
 
 		// TODO: Name the analyzer and give it a description.
 		super("Win32 API Analyzer", "Analyze Win32 functions", AnalyzerType.BYTE_ANALYZER);
-		Win32Data data = new Win32Data();
-		System.out.println(data.getDescription("MessageBoxA"));
+		m_database = new Win32Data();
 
 	}
 
@@ -58,26 +65,158 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 
 	@Override
 	public boolean canAnalyze(Program program) {
-		System.out.println("[Ghidra Win32 A] Binary Foramat: " + program.getExecutableFormat());
-		return true;
+		System.out.println("[Ghidra Win32 A] Binary Foramat:" + program.getExecutableFormat() + "=" + PeLoader.PE_NAME + "?");
+		System.out.println(program.getExecutableFormat().equals(PeLoader.PE_NAME));
+		return program.getExecutableFormat().equals(PeLoader.PE_NAME);
 	}
 
 	@Override
 	public void registerOptions(Options options, Program program) {
 		// options.registerOption("Option name goes here", false, null, "Option description goes here");
 	}
+	
+	private ArrayList<Function> getFuncs() {
+		ArrayList<Function> funcs = new ArrayList<>();
+		String[] support_dlls = {
+				"USER32.DLL",
+				"KERNEL32.DLL"
+		};
+		
+		FunctionManager fm = m_program.getFunctionManager();
+		for(Function func : fm.getExternalFunctions()) {
+			String lib = func.getExternalLocation().getLibraryName();
+			Boolean is_winapi_lib = false;
+			for(String dll : support_dlls) {
+				if(dll.equals(lib)) {
+					is_winapi_lib = true;
+					break;
+				}
+			}
+			if(!is_winapi_lib)
+				continue;
+			
+			if(!m_database.contains(func.getName()))
+				continue;
+			
+			System.out.println("[Ghidra Win32 A] Function: " + func.getName() + " in " + lib);
+			funcs.add(func);
+		}
+		
+		return funcs;
+	}
+	
+	private ArrayList<Address> getCalls(Function func) {
+		ArrayList<Address> calls = new ArrayList<>();
+		
+		ReferenceManager rm = m_program.getReferenceManager();
+		for(Reference ref : rm.getReferencesTo(func.getEntryPoint())) {
+			calls.add(ref.getFromAddress());
+			System.out.println("[Ghidra Win32 A] " + ref.getFromAddress() + " call ->" + func.getName());
+		}
+		
+		return calls;
+	}
+	
+	private long getRegisterValue(Function func, Address call, Register register) {
+		SymbolicPropogator sym_eval = new SymbolicPropogator(m_program);
+		Function caller = m_program.getListing().getFunctionContaining(call);
+		ConstantPropagationContextEvaluator evaluate = new ConstantPropagationContextEvaluator(true);
+		
+		try {
+			sym_eval.flowConstants(caller.getEntryPoint(), caller.getBody(), evaluate, false, m_monitor);
+		} catch (CancelledException e) {
+			// TODO Auto-generated catch block
+			return -1;
+		}
+		
+		Value resault = sym_eval.getRegisterValue(call, register);
+		if(resault != null)
+			return resault.getValue();
+		
+		return -1;
+	}
+	
+	private long getStackValue(Function func, Address call, Parameter param) {
+		Instruction inst = m_program.getListing().getInstructionAt(call);
+		if(inst == null)
+			return -1;
+		
+		Address init = call;
+		Instruction curr = inst.getPrevious();
+		while(curr != null) {
+			if(!curr.getFlowType().toString().equals("FALL_THROUGH"))
+				break;
+			init = curr.getAddress();
+			curr = curr.getPrevious();
+		}
+		
+		EmulatorHelper emulator_helper = new EmulatorHelper(m_program);
+		emulator_helper.setBreakpoint(call);
+		emulator_helper.writeRegister(emulator_helper.getPCRegister(), new BigInteger(init.toString(), 16));
+		
+		long stackOffset = (call.getAddressSpace().getMaxAddress().getOffset() >> 1) -  0x7fff;
+		emulator_helper.writeRegister(emulator_helper.getStackPointerRegister(), stackOffset);
+		
+		Address last = null;
+		BigInteger value = BigInteger.valueOf(-1);
+		while(true) {
+			Address address = emulator_helper.getExecutionAddress();
+			CodeUnit current = m_program.getListing().getCodeUnitAt(address);
+			
+			if(address.equals(last)) {
+				Address go_to = current.getMaxAddress().next();
+				emulator_helper.writeRegister(emulator_helper.getPCRegister(), new BigInteger(go_to.toString(), 16));
+				continue;
+			}
+			else
+				last = address;
+			
+			if(address.equals(call)) {
+				int start = param.getStackOffset() - param.getLength();
+				try {
+					value = emulator_helper.readStackValue(start, param.getLength(), true);
+				} catch (Exception e) {
+					value = BigInteger.valueOf(-1);
+					break;
+				}
+				break;
+			}
+		}
+		
+		return value.longValue();
+	}
+	
+	private long getParameterValue(Function func, Address call, int n) {
+		Parameter param = func.getParameter(n);
+		if(param != null) {
+			if(param.isRegisterVariable())
+				return getRegisterValue(func, call, param.getRegister());
+			else if(param.isStackVariable())
+				return getStackValue(func, call, param);
+		}
+		return -1;
+	}
+	
 
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
 			throws CancelledException {
-	    
 		System.out.println("[Ghidra Win32 A] Starting Analysis...");
 		
-		FunctionManager fm = program.getFunctionManager();
-		for(FunctionIterator fi = fm.getExternalFunctions(); fi.hasNext();) {
-			Function func = fi.next();
-			String lib = func.getExternalLocation().getLibraryName();
-			System.out.println("[Ghidra Win32 A] Function: " + func.getName() + " in " + lib);
+		m_program = program;
+		m_monitor = monitor;
+		
+		
+		for(Function func : getFuncs()) {
+			ArrayList<Address> calls = getCalls(func);
+			for(Address call : calls) {
+				if(m_program.getListing().getFunctionContaining(call) == null)
+					continue;
+				System.out.println("Analyzing call at " + call + " " + func.getName() + "()");
+				for(int i = 0; i < func.getParameterCount(); i++) {
+					System.out.println("param" + (i+1) + " : " + getParameterValue(func, call, i));
+				}
+			}
 		}
 		
 		System.out.println("[Ghidra Win32 A] Analysis Compelete");
