@@ -42,7 +42,7 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 	public ghidra_win32Analyzer() {
 
 		// TODO: Name the analyzer and give it a description.
-		super("My Analyzer", "Analyzer description goes here", AnalyzerType.BYTE_ANALYZER);
+		super("Win32 API Analyzer", "Analyze Win32 functions", AnalyzerType.BYTE_ANALYZER);
 		Win32Data data = new Win32Data();
 		System.out.println(data.getDescription("MessageBoxA"));
 
@@ -58,37 +58,31 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 
 	@Override
 	public boolean canAnalyze(Program program) {
-
-		// TODO: Examine 'program' to determine of this analyzer should analyze it.  Return true
-		// if it can.
-		System.out.println("Try Analyze: " + program.getExecutableFormat());
-
+		System.out.println("[Ghidra Win32 A] Binary Foramat: " + program.getExecutableFormat());
 		return true;
 	}
 
 	@Override
 	public void registerOptions(Options options, Program program) {
-
-		// TODO: If this analyzer has custom options, register them here
-
-		options.registerOption("Option name goes here", false, null,
-			"Option description goes here");
+		// options.registerOption("Option name goes here", false, null, "Option description goes here");
 	}
 
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
 			throws CancelledException {
-
-		// TODO: Perform analysis when things get added to the 'program'.  Return true if the
-		// analysis succeeded.
 	    
-		System.out.println("============Perform analysis!===========");
+		System.out.println("[Ghidra Win32 A] Starting Analysis...");
+		
 		FunctionManager fm = program.getFunctionManager();
-		for(FunctionIterator fi = fm.getExternalFunctions();fi.hasNext();) {
+		for(FunctionIterator fi = fm.getExternalFunctions(); fi.hasNext();) {
 			Function func = fi.next();
-			
-			System.out.println("Func: " + func.getName() + " in " + func.getExternalLocation().getLibraryName());
+			String lib = func.getExternalLocation().getLibraryName();
+			System.out.println("[Ghidra Win32 A] Function: " + func.getName() + " in " + lib);
 		}
+		
+		System.out.println("[Ghidra Win32 A] Analysis Compelete");
+		
 		return true;
 	}
+
 }
