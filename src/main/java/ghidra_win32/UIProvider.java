@@ -1,10 +1,15 @@
 package ghidra_win32;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -26,6 +31,8 @@ class UIProvider extends ComponentProvider {
 	private JTextField findTextField;
 	private JTextArea result;
 	private Win32Data database;
+	private DefaultListModel<String> listmodel = new DefaultListModel<String>();
+	private JList<String> candidateResults = new JList<String>(listmodel);
 
 	public UIProvider(Plugin plugin, String owner) {
 		super(plugin.getTool(), owner, owner);
@@ -41,31 +48,24 @@ class UIProvider extends ComponentProvider {
 		findTextField.getDocument().addDocumentListener(new DocumentListener() {
 			@Override
 			public void insertUpdate(DocumentEvent e) {
-				System.out.println("afa");
 				showAutocompleteResult();
 			}
 
 			@Override
-			public void removeUpdate(DocumentEvent e) { }
+			public void removeUpdate(DocumentEvent e) {
+				showAutocompleteResult();
+			}
 
 			@Override
-			public void changedUpdate(DocumentEvent e) { }
+			public void changedUpdate(DocumentEvent e) {
+				showAutocompleteResult();
+			}
 			
 			public void showAutocompleteResult() {
-				//TODO: show autocomplete result
-				JTextField textField = new JTextField();
-				JPopupMenu popup = new JPopupMenu();
-				textField.add(popup);
-				textField.setComponentPopupMenu(popup);
-
-				// 2. Let's create a sub-menu that "expands"
-				JMenu subMenu = new JMenu("m");
-				subMenu.add("m1");
-				subMenu.add("m2");
-
-				// 3. Finally, add the sub-menu and item to the popup
-				popup.add(subMenu);
-				popup.add("n");
+				if (findTextField.getText()==null) return;
+				listmodel.clear();
+				listmodel.addAll(database.getFunctionList(findTextField.getText()));
+				candidateResults.setModel(listmodel);
 			}
 			
 		});
@@ -74,6 +74,7 @@ class UIProvider extends ComponentProvider {
 		button.addActionListener(new java.awt.event.ActionListener(){
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				candidateResults.setVisible(false);
 				queryWin32Data(findTextField.getText());
 			}
 		 });
@@ -85,6 +86,17 @@ class UIProvider extends ComponentProvider {
 		resultPanel.add(result);
 		
 		panel.add(searchPanel);
+		panel.add(candidateResults);
+		MouseListener mouseListener = new MouseAdapter() {
+		    public void mouseClicked(MouseEvent e) {
+		        if (e.getClickCount() == 2) {
+		        	System.out.println(candidateResults.getSelectedIndex());
+		           String selectedItem = candidateResults.getSelectedValue();
+		           findTextField.setText(selectedItem);
+		         }
+		    }
+		};
+		candidateResults.addMouseListener(mouseListener);
 		panel.add(resultPanel);
 	}
 	
