@@ -52,11 +52,12 @@ public class Win32Data {
 		
 		m_functions = new HashMap<String, Function>();
 		
-		loadData();
+		loadData("./data/winuser.json");
+		loadData("./data/shellapi.json");
 	}
 	
-	private void loadData() {
-		Path file = Paths.get("./data/winuser.json");
+	private void loadData(String file_name) {
+		Path file = Paths.get(file_name);
 		byte[] fileArray = null;
 		try {
 		    fileArray = Files.readAllBytes(file);
