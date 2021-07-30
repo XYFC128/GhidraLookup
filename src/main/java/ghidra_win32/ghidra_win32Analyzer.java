@@ -43,22 +43,8 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 
 		// TODO: Name the analyzer and give it a description.
 		super("My Analyzer", "Analyzer description goes here", AnalyzerType.BYTE_ANALYZER);
-		
-	    Path file = Paths.get("./data/data.json");
-	    byte[] fileArray = null;
-	    try {
-			fileArray = Files.readAllBytes(file);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	    String raw = new String(fileArray);
-	    JSONObject object = new JSONObject(raw);
-	    JSONArray functions = object.getJSONArray("functions");
-	    for(Iterator<Object> it = functions.iterator(); it.hasNext();) {
-	    	JSONObject func = (JSONObject)it.next();
-	    	System.out.println(func.getString("name"));
-	    }
+		Win32Data data = new Win32Data();
+		System.out.println(data.getDescription("MessageBoxA"));
 
 	}
 
