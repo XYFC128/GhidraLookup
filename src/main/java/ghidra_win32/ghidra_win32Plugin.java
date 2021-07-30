@@ -105,8 +105,8 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 				DockingAction act = new DockingAction("My Action", ctx.getComponentProvider().getName()) {
 					@Override
 					public void actionPerformed(ActionContext context) {
-						//Msg.showInfo(getClass(), provider.getComponent(), "Custom Action", "hello");
-						showWindow();
+	
+						showWindow(token.getText());
 					}
 				};
 				act.setEnabled(true);
@@ -114,8 +114,7 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 				act.markHelpUnnecessary();
 				list.add(act);
 				
-				//cur_function_name = fn_token.getText();
-				System.out.println(token.getText());
+
 				return list;
 			}
 		}
@@ -123,7 +122,8 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		return new ArrayList<>();
 	}
 	
-	public void showWindow() {
+	public void showWindow(String token) {
+		provider.openWindowByClicking(token);
 		provider.setVisible(true);
 	}
 
