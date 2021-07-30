@@ -6,8 +6,6 @@ import java.util.*;
 
 import org.json.*;
 
-import ghidra.app.plugin.core.function.tags.AllFunctionsPanel;
-
 public class Win32Data {
 	
 	private class Parameter {
