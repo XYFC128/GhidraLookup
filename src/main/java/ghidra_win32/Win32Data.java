@@ -174,7 +174,7 @@ public class Win32Data {
 			return null;
 		ArrayList<Parameter> pars = m_functions.get(func_name).parameters;
 		for(int i = 0; i < pars.size(); i++) {
-			if(pars.get(i).name == par_name)
+			if(pars.get(i).name.equals(par_name))
 				return pars.get(i).description;
 		}
 		return null;
@@ -188,7 +188,7 @@ public class Win32Data {
 		
 		ArrayList<Parameter> pars = m_functions.get(func_name).parameters;
 		for(int i = 0; i < pars.size(); i++) {
-			if(pars.get(i).name == par_name) {
+			if(pars.get(i).name.equals(par_name)) {
 				for(int j = 0; j < pars.get(i).possible_constants.size(); i++) {
 					replacements.add(pars.get(i).possible_constants.get(j));
 				}
