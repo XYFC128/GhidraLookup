@@ -9,6 +9,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -28,6 +29,7 @@ import javax.swing.event.HyperlinkListener;
 
 import docking.ComponentProvider;
 import ghidra.framework.plugintool.Plugin;
+import ghidra_win32.Win32Data.Constant;
 
 class UIProvider extends ComponentProvider {
 
@@ -121,8 +123,44 @@ class UIProvider extends ComponentProvider {
 			result.setText(functionName + " is not a Win32 function");
 			return;
 		}
-		result.setText("<a href=\""+ database.getURL(functionName) +"\">" + functionName +"</a>");
-		//result.
+		String showData = "<font size = \"6\"><a href=\""+ database.getURL(functionName) +"\">MSDN Link</a></font><br>";
+		showData += "<font size = \"6\"><font color=\"blue\">" + database.getReturnType(functionName) + "</font>" ;
+		showData += " <font color=\"green\">" + functionName + "</font>(";
+		int parameterCount = database.getNumParameter(functionName);
+		for (int i=0;i<parameterCount;i++) {
+			showData += "  " + database.getParameterType(functionName, i) 
+			+ "  " + database.getNthParameterName(functionName, i);
+			if (i+1 != parameterCount) showData += ",";
+		}
+		showData += ")</font><br>";
+		
+		showData += database.getDescription(functionName) 
+				+ "<br><br><font size=\"5\"><strong>Parameters:</strong></font><br>";
+		for (int i=0;i<parameterCount;i++) {
+			showData += "<b>" + database.getParameterType(functionName, i) 
+			+ "  " + database.getNthParameterName(functionName, i)
+			+ "</b>: "
+			+ database.getParameterDescription(functionName
+					, database.getNthParameterName(functionName, i));
+			
+			ArrayList<Constant> replacements = database.getParameterReplacements
+					(functionName,database.getNthParameterName(functionName, i));
+			int replacementCount = replacements.size();
+			if (replacementCount > 0) {
+				showData += "<br><u>Possible Parameter Replacements: </u>";
+				
+				for (int j=0;j<replacementCount;j++) {
+					showData += "<br>";
+					showData += replacements.get(j).name+ " = " + replacements.get(j).value;
+					if (j+1 != replacementCount) showData += ",";
+				}
+			}
+			
+			showData += "<br><br>";
+		}
+		
+		
+		result.setText(showData);
 	}
 
 
