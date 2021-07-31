@@ -7,9 +7,9 @@ import json
 domain = "https://docs.microsoft.com"
 
 paths = {
-	"shellapi" : "/en-us/windows/win32/api/shellapi/",
-	"winuser"  : "/en-us/windows/win32/api/winuser/",
-	"heapapi"  : "/en-us/windows/win32/api/heapapi/",
+	"shellapi" :          "/en-us/windows/win32/api/shellapi/",
+	"winuser"  :          "/en-us/windows/win32/api/winuser/",
+	"heapapi"  :          "/en-us/windows/win32/api/heapapi/",
 	"processthreadsapi" : "/en-us/windows/win32/api/processthreadsapi/" 
 }
 
@@ -18,15 +18,20 @@ data = {
 	]
 }
 
+def hex_to_int(s):
+	assert(s.startswith("0x"))
+	return int(s.replace("U", "").replace("L", ""), 16)
+
+def get_suffix_num(s):
+	i = len(s) - 1
+	while s[i] in '0123456789':
+		i -= 1
+	return s[i+1:] if i < len(s) - 1 else ""
+
 def sibling_tag(i):
 	i = i.next_sibling
 	while i and not isinstance(i, element.Tag):
 		i = i.next_sibling
-	return i
-
-def sibling_p(i):
-	while i.name != "p":
-		i = sibling_tag(i)
 	return i
 
 def request_site(site):
@@ -105,27 +110,33 @@ def fetch_function(site, f_name):
 				if i.name == "p":  # append description
 					p_desc += "\n" + i.text.strip()
 				elif i.name == "table" and i.tr.th.text.startswith("Value"):  # append possible constants
-					constants = i.find_all("tr")[1:]
-					for constant in constants:
-						dt = constant.td.find_all("dt")
-						if not dt: # no value for this constant
-							c_name = constant.td.text
+					rows = i.find_all("tr")[1:]
+					for row in rows:
+						td = row.find_all("td", recursive=False)
+						dt = row.td.find_all("dt")
+						# <td><strong>name</strong><br>value</td><td>desc</td>
+						if row.td.strong:
+							c_name = td[0].strong.text
+							c_value = int(get_suffix_num(td[0].text))
+						elif not dt:
+							c_name = row.td.text
 							c_value = -1
 						elif len(dt) == 1:
 							c_name = dt[0].text
 							c_value = -1
-						elif len(dt) == 2: # no value for this constant
+						# <td><dl><dt><b>name</b></dt>value<dt></dt></dl></td><td>desc</td>
+						elif len(dt) == 2:
 							c_name = dt[0].text
-							c_value = int(dt[1].text.replace("L", "").replace("U", ""), 16) if dt[1].text.startswith("0x") else -1
-						print("{} : {}".format(c_name, c_value))
+							c_value = hex_to_int(dt[1].text) if dt[1].text.startswith("0x") else -1
+						print("    {} : {}".format(c_name, c_value))
 						param_data["possible_constants"].append([c_name, c_value])
 				i = sibling_tag(i)
 
-			print("  param desc: {}\n".format(p_desc))
-			param_data["description"] = p_desc
+			print("  param desc: {}\n".format(p_desc.strip()))
+			param_data["description"] = p_desc.strip()
 			func_data["parameters"].append(param_data)
 		data["functions"].append(func_data)
-	except AttributeError:
+	except None: #AttributeError:
 		function_limit = 0
 		print("[!] Function Fetch Failed")
 		return
@@ -137,6 +148,7 @@ def main():
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-wvsprintfa', 'wvsprintfA')
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsa', 'ChangeDisplaySettingsA')
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-deferwindowpos', 'DeferWindowPos')
+	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow', 'ShowWindow')
 	# with open("./data/test.json", "w") as f:
 	# 	f.write(json.dumps(data))
 	# return
