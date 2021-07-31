@@ -92,7 +92,6 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		};
 		act.setEnabled(true);
 		act.setToolBarData(new ToolBarData(Icons.HELP_ICON));
-		act.setPopupMenuData(new MenuData(new String[] { "Lookup Win32 Documentation" }, "Ghidra Win32"));
 		act.markHelpUnnecessary();
 		
 		tool.addAction(act);
