@@ -2,6 +2,7 @@ package ghidra_win32;
 
 import java.awt.BorderLayout;
 import java.awt.Desktop;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -27,6 +28,8 @@ import javax.swing.event.DocumentListener;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
+import org.python.icu.impl.number.Endpoint;
+
 import docking.ComponentProvider;
 import ghidra.framework.plugintool.Plugin;
 import ghidra_win32.Win32Data.Constant;
@@ -42,7 +45,7 @@ class UIProvider extends ComponentProvider {
 
 	public UIProvider(Plugin plugin, String owner) {
 		super(plugin.getTool(), owner, owner);
-		panel.setLayout(new BoxLayout(panel,BoxLayout.Y_AXIS));
+		panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 		database = new Win32Data();
 		result = new JEditorPane();
 		result.setEditorKit(JEditorPane.createEditorKitForContentType("text/html"));
@@ -76,8 +79,6 @@ class UIProvider extends ComponentProvider {
 			}
 			
 		});
-		JPanel search = new JPanel();
-		search.add(findTextField);
 		
 		MouseListener mouseListener = new MouseAdapter() {
 		    public void mouseClicked(MouseEvent e) {
@@ -88,7 +89,7 @@ class UIProvider extends ComponentProvider {
 		    }
 		};
 		candidateResults.addMouseListener(mouseListener);
-		JScrollPane scrollPane1 = new JScrollPane(candidateResults);
+		
 		result.addHyperlinkListener(new HyperlinkListener() {
 		    public void hyperlinkUpdate(HyperlinkEvent e) {
 		        if(e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
@@ -104,13 +105,23 @@ class UIProvider extends ComponentProvider {
 		        }
 		    }
 		});
-		JScrollPane scrollPane2 = new JScrollPane(result);
 		
-		JPanel endPanel = new JPanel(new GridLayout(1,0));
-        endPanel.add(scrollPane1);
-        endPanel.add(scrollPane2);
-		panel.add(search);
-		panel.add(endPanel);
+		// layout
+		
+		
+		findTextField.setMaximumSize(new Dimension(Short.MAX_VALUE, 15));
+		JPanel leftPane = new JPanel();
+		leftPane.setLayout(new BoxLayout(leftPane, BoxLayout.Y_AXIS));
+		leftPane.setMaximumSize(new Dimension(250, Short.MAX_VALUE));
+		leftPane.setPreferredSize(new Dimension(250, 500));
+		leftPane.add(new JScrollPane(candidateResults));
+		leftPane.add(findTextField);
+		
+		JScrollPane scrollPane2 = new JScrollPane(result);
+		scrollPane2.setPreferredSize(new Dimension(500, 500));
+		
+		panel.add(leftPane);
+        panel.add(scrollPane2);
 	}
 	
 	public void openWindowByClicking(String token) {
