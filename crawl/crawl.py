@@ -28,11 +28,14 @@ def get_suffix_num(s):
 		i -= 1
 	return s[i+1:] if i < len(s) - 1 else ""
 
+def num_child_tags(i):
+	return len(i.find_all())
+
 def sibling_tag(i):
 	i = i.next_sibling
 	while i and not isinstance(i, element.Tag):
 		i = i.next_sibling
-	return i
+	return i if isinstance(i, element.Tag) else None
 
 def request_site(site):
 	req = requests.get(site)
@@ -87,7 +90,8 @@ def fetch_function(site, f_name):
 			data["functions"].append(func_data)
 			return
 		i = tmp.find_next_sibling("p")
-		while i and i.find("code"):
+		# <p><code>param name</code></p>
+		while i and i.find("code"): # found new parameter name
 			param_data = {
 				"name" : "",
 				"type" : "",
@@ -98,7 +102,10 @@ def fetch_function(site, f_name):
 			print("  param name: {}".format(p_name))
 			param_data["name"] = p_name
 			i = sibling_tag(i)
+			found_param_type = False
+			# <p>Type: <b>param type</b></p>
 			if i and i.name == "p" and i.text.startswith("Type:"):  # sometimes the 2nd paragraph is the type
+				found_param_type = True
 				p_type = i.text.replace("Type: ", "").strip()
 				print("  param type: {}".format(p_type))
 				param_data["type"] = p_type
@@ -106,6 +113,9 @@ def fetch_function(site, f_name):
 			# parse parameter description and their possible constants
 			p_desc = ""
 			p_constants = ""
+			if found_param_type: # then the following paragraph must be its description
+				p_desc += "\n" + i.text.strip()
+				i = sibling_tag(i)
 			while i and (i.name == "p" or i.name == "table") and not i.find("code"):
 				if i.name == "p":  # append description
 					p_desc += "\n" + i.text.strip()
@@ -131,7 +141,6 @@ def fetch_function(site, f_name):
 						print("    {} : {}".format(c_name, c_value))
 						param_data["possible_constants"].append([c_name, c_value])
 				i = sibling_tag(i)
-
 			print("  param desc: {}\n".format(p_desc.strip()))
 			param_data["description"] = p_desc.strip()
 			func_data["parameters"].append(param_data)
@@ -149,6 +158,7 @@ def main():
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsa', 'ChangeDisplaySettingsA')
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-deferwindowpos', 'DeferWindowPos')
 	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow', 'ShowWindow')
+	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxexa', 'MessageBoxExA')
 	# with open("./data/test.json", "w") as f:
 	# 	f.write(json.dumps(data))
 	# return
