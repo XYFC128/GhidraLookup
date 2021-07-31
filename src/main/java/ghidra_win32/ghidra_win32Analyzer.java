@@ -20,6 +20,7 @@ import java.util.*;
 
 import org.python.icu.impl.duration.impl.DataRecord.EMilliSupport;
 
+import ghidra.app.cmd.equate.SetEquateCmd;
 import ghidra.app.emulator.EmulatorHelper;
 import ghidra.app.plugin.core.analysis.ConstantPropagationContextEvaluator;
 import ghidra.app.services.AbstractAnalyzer;
@@ -29,6 +30,7 @@ import ghidra.app.util.opinion.PeLoader;
 import ghidra.framework.options.Options;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSetView;
+import ghidra.program.model.lang.OperandType;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.symbol.*;
@@ -36,6 +38,7 @@ import ghidra.program.util.*;
 import ghidra.program.util.SymbolicPropogator.Value;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.task.TaskMonitor;
+import ghidra_win32.Win32Data.Constant;
 
 /**
  * TODO: Provide class-level documentation that describes what this analyzer does.
@@ -197,6 +200,62 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		return -1;
 	}
 	
+	public String getConstants(Function func, int nth_param, long value){
+		if(value == -1)
+			return null;
+		String param_name = m_database.getNthParameter(func.getName(), nth_param+1);
+		ArrayList<Win32Data.Constant> pos_constants = m_database.getParameterReplacements(func.getName(), param_name);
+		if(pos_constants == null || pos_constants.isEmpty())
+			return null;
+		
+		String constants_str = "";
+		ArrayList<String> constants = new ArrayList<>();
+		for(Win32Data.Constant con : pos_constants) {
+			if(con.value == -1)
+				continue;
+			else if(con.value == 0 && con.value == value)
+				constants.add(con.name);
+			else if((con.value & value) == con.value)
+				constants.add(con.name);
+		}
+		
+		for(String con : constants) {
+			if(!constants_str.isBlank())
+				constants_str += '|';
+			constants_str += con;
+		}
+		
+		return constants_str;
+	}
+	
+	public void updateEquates(Address call, String constants, long value) {
+		if(value == -1)
+			return;
+		System.out.println("Try to update equate " + constants + " for call at " + call);
+		Instruction inst = m_program.getListing().getInstructionAt(call);
+		Boolean done = false;
+		while(!done && inst != null) {
+			for(int i = 0; i < inst.getNumOperands(); i++) {
+				if(inst.getOperandType(i) == OperandType.SCALAR) {
+					long scalar = inst.getScalar(i).getUnsignedValue();
+					System.out.println("Found scalar:" + scalar);
+					if(scalar == value) {
+						SetEquateCmd cmd = new SetEquateCmd(constants, inst.getAddress(), i, value);
+						cmd.applyTo(m_program);
+						System.out.println("Applied Equate:" + constants + " to " + inst.getAddress());
+						done = true;
+						break;
+					}
+				}
+			}
+			
+			inst = inst.getPrevious();
+			if (inst == null || inst.getFlowType().toString() != "FALL_THROUGH") 
+				break;
+		}
+		
+	}
+	
 
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
@@ -206,15 +265,19 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		m_program = program;
 		m_monitor = monitor;
 		
-		
 		for(Function func : getFuncs()) {
 			ArrayList<Address> calls = getCalls(func);
 			for(Address call : calls) {
 				if(m_program.getListing().getFunctionContaining(call) == null)
 					continue;
-				System.out.println("Analyzing call at " + call + " " + func.getName() + "()");
+				System.out.println("Analyzing call at " + call + " " + func.getName() + ", caller : " + m_program.getListing().getFunctionContaining(call).getName());
 				for(int i = 0; i < func.getParameterCount(); i++) {
-					System.out.println("param" + (i+1) + " : " + getParameterValue(func, call, i));
+					long value = getParameterValue(func, call, i);
+					System.out.println("param" + (i+1) + " : " + value);
+					String consts = getConstants(func, i, value);
+					if(consts == null || consts.isBlank())
+						continue;
+					updateEquates(call, consts, value);
 				}
 			}
 		}
