@@ -68,8 +68,6 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 
 	@Override
 	public boolean canAnalyze(Program program) {
-		System.out.println("[Ghidra Win32 A] Binary Foramat:" + program.getExecutableFormat() + "=" + PeLoader.PE_NAME + "?");
-		System.out.println(program.getExecutableFormat().equals(PeLoader.PE_NAME));
 		return program.getExecutableFormat().equals(PeLoader.PE_NAME);
 	}
 
@@ -231,14 +229,12 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 	public void updateEquates(Address call, String constants, long value) {
 		if(value == -1)
 			return;
-		System.out.println("Try to update equate " + constants + " for call at " + call);
 		Instruction inst = m_program.getListing().getInstructionAt(call);
 		Boolean done = false;
 		while(!done && inst != null) {
 			for(int i = 0; i < inst.getNumOperands(); i++) {
 				if(inst.getOperandType(i) == OperandType.SCALAR) {
 					long scalar = inst.getScalar(i).getUnsignedValue();
-					System.out.println("Found scalar:" + scalar);
 					if(scalar == value) {
 						SetEquateCmd cmd = new SetEquateCmd(constants, inst.getAddress(), i, value);
 						cmd.applyTo(m_program);
