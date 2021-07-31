@@ -16,14 +16,17 @@
 package ghidra_win32;
 
 import java.math.BigInteger;
+import java.sql.ResultSet;
 import java.util.*;
 
-import org.python.icu.impl.duration.impl.DataRecord.EMilliSupport;
+import ghidra.app.decompiler.*;
+import ghidra.app.decompiler.parallel.*;
 
 import ghidra.app.cmd.equate.SetEquateCmd;
 import ghidra.app.emulator.EmulatorHelper;
 import ghidra.app.plugin.core.analysis.ConstantPropagationContextEvaluator;
 import ghidra.app.services.AbstractAnalyzer;
+import ghidra.app.services.AnalysisPriority;
 import ghidra.app.services.AnalyzerType;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.PeLoader;
@@ -33,6 +36,9 @@ import ghidra.program.model.address.AddressSetView;
 import ghidra.program.model.lang.OperandType;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.listing.*;
+import ghidra.program.model.pcode.HighFunction;
+import ghidra.program.model.pcode.PcodeOpAST;
+import ghidra.program.model.pcode.Varnode;
 import ghidra.program.model.symbol.*;
 import ghidra.program.util.*;
 import ghidra.program.util.SymbolicPropogator.Value;
@@ -55,7 +61,7 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		// TODO: Name the analyzer and give it a description.
 		super("Win32 API Analyzer", "Analyze Win32 functions", AnalyzerType.BYTE_ANALYZER);
 		m_database = new Win32Data();
-
+		setPriority(new AnalysisPriority(10000000));
 	}
 
 	@Override
@@ -201,7 +207,7 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 	public String getConstants(Function func, int nth_param, long value){
 		if(value == -1)
 			return null;
-		String param_name = m_database.getNthParameter(func.getName(), nth_param+1);
+		String param_name = m_database.getNthParameterName(func.getName(), nth_param);
 		ArrayList<Win32Data.Constant> pos_constants = m_database.getParameterReplacements(func.getName(), param_name);
 		if(pos_constants == null || pos_constants.isEmpty())
 			return null;
@@ -261,11 +267,16 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		m_program = program;
 		m_monitor = monitor;
 		
+		ArrayList<Function> callers = new ArrayList<>();
+		
 		for(Function func : getFuncs()) {
 			ArrayList<Address> calls = getCalls(func);
 			for(Address call : calls) {
-				if(m_program.getListing().getFunctionContaining(call) == null)
+				Function caller = m_program.getListing().getFunctionContaining(call);
+				if(caller == null)
 					continue;
+				callers.add(caller);
+				
 				System.out.println("Analyzing call at " + call + " " + func.getName() + ", caller : " + m_program.getListing().getFunctionContaining(call).getName());
 				for(int i = 0; i < func.getParameterCount(); i++) {
 					long value = getParameterValue(func, call, i);
@@ -278,9 +289,104 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 			}
 		}
 		
+		try {
+			runDecompilerAnalysis(program, callers, monitor);
+		}
+		catch (Exception e) {
+			// Oh well.
+		}
+		
 		System.out.println("[Ghidra Win32 A] Analysis Compelete");
 		
 		return true;
+	}
+	
+	private void runDecompilerAnalysis(Program program, List<Function> functions,
+			TaskMonitor monitor) throws InterruptedException, Exception {
+
+		DecompileConfigurer configurer = decompiler -> setupDecompiler(program, decompiler);
+
+		DecompilerCallback<Void> callback = new DecompilerCallback<Void>(program, configurer) {
+
+			@Override
+			public Void process(DecompileResults results, TaskMonitor m) throws Exception {
+				inspectFunction(program, results, monitor);
+				return null;
+			}
+		};
+
+		try {
+			ParallelDecompiler.decompileFunctions(callback, functions, monitor);
+		}
+		finally {
+			callback.dispose();
+		}
+	}
+	
+	private void inspectFunction(Program program, DecompileResults results, TaskMonitor monitor) {
+		// For debug only
+		if(!results.getFunction().getName().equals("main"))
+			return;
+		/*
+		ArrayList<ClangNode> tokens = new ArrayList<>();
+		results.getCCodeMarkup().flatten(tokens);
+		System.out.println(results.getFunction().getName() + ":" + tokens);
+		for(ClangNode tok : tokens) {
+			if(tok instanceof ClangFieldToken) {
+				System.out.println(tok + ", NumChildren: " + tok.numChildren());
+				
+			}
+		}
+		System.out.println("=======");
+		LinkedList<ClangNode> q = new LinkedList<>();
+		q.add(results.getCCodeMarkup());
+		while(!q.isEmpty()) {
+			ClangNode tok = q.getFirst();q.removeFirst();
+			if(tok instanceof ClangVariableToken) {
+				Address addr = ((ClangVariableToken)tok).getVarnode().getAddress();
+				System.out.println("ClangVariableToken: " + tok + " Address:" + addr + ", parent:" + tok.Parent());
+			}
+			if(tok instanceof ClangStatement)
+				System.out.println("ClangStatement: " + tok + " Address:" + tok.getMinAddress());
+			if(tok.numChildren() > 0) {
+				for(int i = 0; i < tok.numChildren(); i++) {
+					q.addLast(tok.Child(i));
+				}
+			}
+		}
+		
+		*/
+		
+		HighFunction highFunction = results.getHighFunction();
+		if (highFunction == null) {
+			return;
+		}
+		Function function = results.getFunction();
+		Iterator<PcodeOpAST> pcodeOps = highFunction.getPcodeOps();
+		while (pcodeOps.hasNext()) {
+
+			PcodeOpAST op = pcodeOps.next();
+			String mnemonic = op.getMnemonic();
+			if(mnemonic.equals("CALL")) {
+				System.out.println(mnemonic + ":");
+				System.out.println("Inputs: ");
+				for(Varnode var : op.getInputs()) {
+					System.out.println(var.getOffset());
+				}
+				System.out.println("Outputs: " + op.getOutput());
+			}
+		}
+		
+	}
+	
+	private void setupDecompiler(Program p, DecompInterface decompiler) {
+		decompiler.toggleCCode(true);
+		decompiler.toggleSyntaxTree(true);
+		decompiler.setSimplificationStyle("decompile");
+		DecompileOptions options = new DecompileOptions();
+		options.grabFromProgram(p);
+		options.setEliminateUnreachable(false);
+		decompiler.setOptions(options);
 	}
 
 }
