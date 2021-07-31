@@ -15,20 +15,11 @@
  */
 package ghidra_win32;
 
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-
 import docking.ActionContext;
-import docking.ComponentProvider;
 import docking.Tool;
 import docking.action.DockingAction;
 import docking.action.DockingActionIf;
@@ -40,12 +31,9 @@ import ghidra.app.decompiler.ClangToken;
 import ghidra.app.decompiler.DecompilerLocation;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
-import ghidra.framework.plugintool.Plugin;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
-import ghidra.program.model.listing.Program;
-import ghidra.program.util.ProgramLocation;
 import ghidra.util.HelpLocation;
 
 /**
@@ -64,8 +52,7 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 
 	UIProvider provider;
 	// data
-	String cur_function_name;
-
+	Win32Data m_database;
 	/**
 	 * Plugin constructor.
 	 * 
@@ -75,16 +62,16 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 	public ghidra_win32Plugin(PluginTool tool) {
 		super(tool, true, true);
 		
-		cur_function_name = new String();
-		
 		// TODO: Customize provider (or remove if a provider is not desired)
 		String pluginName = getName();
 		provider = new UIProvider(this, pluginName);
-
+		
 		// TODO: Customize help (or remove if help is not desired)
 		String topicName = this.getClass().getPackage().getName();
 		String anchorName = "HelpAnchor";
 		provider.setHelpLocation(new HelpLocation(topicName, anchorName));
+		
+		m_database = provider.getDatabase();
 	}
 
 	@Override
@@ -99,18 +86,17 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		// TODO Auto-generated method stub
 		if(currentLocation instanceof DecompilerLocation) {
 			ClangToken token = ((DecompilerLocation)currentLocation).getToken();
-			if(token instanceof ClangFuncNameToken)
+			if((token instanceof ClangFuncNameToken) && m_database.contains(token.getText()))
 			{
 				List<DockingActionIf> list = new ArrayList<>();
-				DockingAction act = new DockingAction("My Action", ctx.getComponentProvider().getName()) {
+				DockingAction act = new DockingAction("Lookup Win32 Documentation", ctx.getComponentProvider().getName()) {
 					@Override
 					public void actionPerformed(ActionContext context) {
-	
 						showWindow(token.getText());
 					}
 				};
 				act.setEnabled(true);
-				act.setPopupMenuData(new MenuData(new String[] { "My Action" }, "Decompile"));
+				act.setPopupMenuData(new MenuData(new String[] { "Lookup Win32 Documentation" }, "Ghidra Win32"));
 				act.markHelpUnnecessary();
 				list.add(act);
 				
@@ -118,7 +104,6 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 				return list;
 			}
 		}
-		cur_function_name = "";
 		return new ArrayList<>();
 	}
 	

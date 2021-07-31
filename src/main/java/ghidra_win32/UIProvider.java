@@ -162,6 +162,10 @@ class UIProvider extends ComponentProvider {
 		
 		result.setText(showData);
 	}
+	
+	public Win32Data getDatabase() {
+		return database;
+	}
 
 
 	@Override
