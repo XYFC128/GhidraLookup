@@ -24,6 +24,7 @@ import docking.Tool;
 import docking.action.DockingAction;
 import docking.action.DockingActionIf;
 import docking.action.MenuData;
+import docking.action.ToolBarData;
 import docking.actions.PopupActionProvider;
 import ghidra.app.ExamplesPluginPackage;
 import ghidra.app.decompiler.ClangFuncNameToken;
@@ -35,6 +36,7 @@ import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.util.HelpLocation;
+import resources.Icons;
 
 /**
  * TODO: Provide class-level documentation that describes what this plugin does.
@@ -78,7 +80,22 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 	public void init() {
 		super.init();
 		tool.addPopupActionProvider(this);
-		// TODO: Acquire services if necessary
+		setupAction();
+	}
+	
+	private void setupAction() {
+		DockingAction act = new DockingAction("Lookup Win32 Documentation", getName()) {
+			@Override
+			public void actionPerformed(ActionContext context) {
+				showWindow(null);
+			}
+		};
+		act.setEnabled(true);
+		act.setToolBarData(new ToolBarData(Icons.HELP_ICON));
+		act.setPopupMenuData(new MenuData(new String[] { "Lookup Win32 Documentation" }, "Ghidra Win32"));
+		act.markHelpUnnecessary();
+		
+		tool.addAction(act);
 	}
 	
 	@Override

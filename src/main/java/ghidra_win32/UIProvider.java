@@ -156,6 +156,8 @@ class UIProvider extends ComponentProvider {
 	}
 	
 	public void openWindowByClicking(String token) {
+		if(token == null || token.isBlank())
+			return;
 		findTextField.setText(token);
 		queryWin32Data(token);
 	}
