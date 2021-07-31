@@ -157,20 +157,43 @@ public class Win32Data {
 		return m_functions.get(func_name).return_type;
 	}
 	
-	public int getNumParameter(String func_name, int index) {
+	public int getNumParameter(String func_name) {
 		if(!contains(func_name)) 
 			return 0;
 		return m_functions.get(func_name).parameters.size();
 	}
 	
-	public String getNthParameter(String func_name, int index) {
+	public String getNthParameterName(String func_name, int index) {
 		if(!contains(func_name))
 			return null;
 		
-		if(index < 1 || getNumParameter(func_name, index) < index)
+		if(index < 0 || getNumParameter(func_name) <= index)
 			return null;
 		
-		return m_functions.get(func_name).parameters.get(index-1).name;
+		return m_functions.get(func_name).parameters.get(index).name;
+	}
+	
+	public String getParameterType(String func_name, int param_index) {
+		if(!contains(func_name))
+			return null;
+		
+		if(param_index < 0 || getNumParameter(func_name) <= param_index)
+			return null;
+		
+		return m_functions.get(func_name).parameters.get(param_index).type;
+	}
+	
+	public String getParameterType(String func_name, String param_name) {
+		if(!contains(func_name))
+			return null;
+		
+		for(Parameter param : m_functions.get(func_name).parameters) {
+			if(param.name == param_name)
+				return param.type;
+		}
+		
+		return null;
+		
 	}
 	
 	public ArrayList<String> getParameters(String func_name) {
