@@ -15,12 +15,22 @@
  */
 package ghidra_win32;
 
-import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
 
 import ghidra.app.cmd.equate.SetEquateCmd;
-import ghidra.app.emulator.EmulatorHelper;
-import ghidra.app.plugin.core.analysis.ConstantPropagationContextEvaluator;
+import ghidra.app.decompiler.ClangFuncNameToken;
+import ghidra.app.decompiler.ClangFuncProto;
+import ghidra.app.decompiler.ClangNode;
+import ghidra.app.decompiler.ClangVariableToken;
+import ghidra.app.decompiler.DecompInterface;
+import ghidra.app.decompiler.DecompileOptions;
+import ghidra.app.decompiler.DecompileResults;
+import ghidra.app.decompiler.parallel.DecompileConfigurer;
+import ghidra.app.decompiler.parallel.DecompilerCallback;
+import ghidra.app.decompiler.parallel.ParallelDecompiler;
 import ghidra.app.services.AbstractAnalyzer;
 import ghidra.app.services.AnalysisPriority;
 import ghidra.app.services.AnalyzerType;
@@ -29,13 +39,26 @@ import ghidra.app.util.opinion.PeLoader;
 import ghidra.framework.options.Options;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSetView;
+import ghidra.program.model.data.AbstractIntegerDataType;
+import ghidra.program.model.data.BooleanDataType;
+import ghidra.program.model.data.DataType;
 import ghidra.program.model.lang.OperandType;
-import ghidra.program.model.lang.Register;
-import ghidra.program.model.listing.*;
-import ghidra.program.model.symbol.*;
-import ghidra.program.util.*;
-import ghidra.program.util.SymbolicPropogator.Value;
+import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionManager;
+import ghidra.program.model.listing.Instruction;
+import ghidra.program.model.listing.Program;
+import ghidra.program.model.pcode.DynamicHash;
+import ghidra.program.model.pcode.EquateSymbol;
+import ghidra.program.model.pcode.HighSymbol;
+import ghidra.program.model.pcode.PcodeOp;
+import ghidra.program.model.pcode.Varnode;
+import ghidra.program.model.symbol.Equate;
+import ghidra.program.model.symbol.EquateTable;
+import ghidra.program.model.symbol.Reference;
+import ghidra.program.model.symbol.ReferenceManager;
 import ghidra.util.exception.CancelledException;
+import ghidra.util.exception.DuplicateNameException;
+import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 
 /**
@@ -110,97 +133,17 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		ReferenceManager rm = m_program.getReferenceManager();
 		for(Reference ref : rm.getReferencesTo(func.getEntryPoint())) {
 			calls.add(ref.getFromAddress());
-			System.out.println("[Ghidra Win32 A] " + ref.getFromAddress() + " call ->" + func.getName());
+			System.out.println("[Ghidra Win32 A] " + ref.getFromAddress() + " call -> " + func.getName());
 		}
 		
 		return calls;
 	}
 	
-	private long getRegisterValue(Function func, Address call, Register register) {
-		SymbolicPropogator sym_eval = new SymbolicPropogator(m_program);
-		Function caller = m_program.getListing().getFunctionContaining(call);
-		ConstantPropagationContextEvaluator evaluate = new ConstantPropagationContextEvaluator(true);
-		
-		try {
-			sym_eval.flowConstants(caller.getEntryPoint(), caller.getBody(), evaluate, false, m_monitor);
-		} catch (CancelledException e) {
-			// TODO Auto-generated catch block
-			return -1;
-		}
-		
-		Value resault = sym_eval.getRegisterValue(call, register);
-		if(resault != null)
-			return resault.getValue();
-		
-		return -1;
-	}
-	
-	private long getStackValue(Function func, Address call, Parameter param) {
-		Instruction inst = m_program.getListing().getInstructionAt(call);
-		if(inst == null)
-			return -1;
-		
-		Address init = call;
-		Instruction curr = inst.getPrevious();
-		while(curr != null) {
-			if(!curr.getFlowType().toString().equals("FALL_THROUGH"))
-				break;
-			init = curr.getAddress();
-			curr = curr.getPrevious();
-		}
-		
-		EmulatorHelper emulator_helper = new EmulatorHelper(m_program);
-		emulator_helper.setBreakpoint(call);
-		emulator_helper.writeRegister(emulator_helper.getPCRegister(), new BigInteger(init.toString(), 16));
-		
-		long stackOffset = (call.getAddressSpace().getMaxAddress().getOffset() >> 1) -  0x7fff;
-		emulator_helper.writeRegister(emulator_helper.getStackPointerRegister(), stackOffset);
-		
-		Address last = null;
-		BigInteger value = BigInteger.valueOf(-1);
-		while(true) {
-			Address address = emulator_helper.getExecutionAddress();
-			CodeUnit current = m_program.getListing().getCodeUnitAt(address);
-			
-			if(address.equals(last)) {
-				Address go_to = current.getMaxAddress().next();
-				emulator_helper.writeRegister(emulator_helper.getPCRegister(), new BigInteger(go_to.toString(), 16));
-				continue;
-			}
-			else
-				last = address;
-			
-			if(address.equals(call)) {
-				int start = param.getStackOffset() - param.getLength();
-				try {
-					value = emulator_helper.readStackValue(start, param.getLength(), true);
-				} catch (Exception e) {
-					value = BigInteger.valueOf(-1);
-					break;
-				}
-				break;
-			}
-		}
-		
-		return value.longValue();
-	}
-	
-	private long getParameterValue(Function func, Address call, int n) {
-		Parameter param = func.getParameter(n);
-		if(param != null) {
-			if(param.isRegisterVariable())
-				return getRegisterValue(func, call, param.getRegister());
-			else if(param.isStackVariable())
-				return getStackValue(func, call, param);
-		}
-		return -1;
-	}
-	
-	public String getConstants(Function func, int nth_param, long value){
+	public String getConstants(String func_name, int nth_param, long value) {
 		if(value == -1)
 			return null;
-		String param_name = m_database.getNthParameterName(func.getName(), nth_param);
-		ArrayList<Win32Data.Constant> pos_constants = m_database.getParameterReplacements(func.getName(), param_name);
+		String param_name = m_database.getNthParameterName(func_name, nth_param);
+		ArrayList<Win32Data.Constant> pos_constants = m_database.getParameterReplacements(func_name, param_name);
 		if(pos_constants == null || pos_constants.isEmpty())
 			return null;
 		
@@ -217,16 +160,20 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		
 		for(String con : constants) {
 			if(!constants_str.isBlank())
-				constants_str += '|';
+				constants_str += " | ";
 			constants_str += con;
 		}
 		
 		return constants_str;
 	}
 	
-	public void updateEquates(Address call, String constants, long value) {
+	public String getConstants(Function func, int nth_param, long value){
+		return getConstants(func.getName(), nth_param, value);
+	}
+	
+	public Boolean updateEquates(Address call, String constants, long value) {
 		if(value == -1)
-			return;
+			return false;
 		Instruction inst = m_program.getListing().getInstructionAt(call);
 		Boolean done = false;
 		while(!done && inst != null) {
@@ -236,7 +183,6 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 					if(scalar == value) {
 						SetEquateCmd cmd = new SetEquateCmd(constants, inst.getAddress(), i, value);
 						cmd.applyTo(m_program);
-						System.out.println("Applied Equate:" + constants + " to " + inst.getAddress());
 						done = true;
 						break;
 					}
@@ -247,7 +193,7 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 			if (inst == null || inst.getFlowType().toString() != "FALL_THROUGH") 
 				break;
 		}
-		
+		return done;
 	}
 	
 
@@ -259,28 +205,179 @@ public class ghidra_win32Analyzer extends AbstractAnalyzer {
 		m_program = program;
 		m_monitor = monitor;
 		
+		HashSet<Function> callers = new HashSet<>();
+		
 		for(Function func : getFuncs()) {
 			ArrayList<Address> calls = getCalls(func);
 			for(Address call : calls) {
 				Function caller = m_program.getListing().getFunctionContaining(call);
 				if(caller == null)
 					continue;
-				
-				System.out.println("Analyzing call at " + call + " " + func.getName() + ", caller : " + m_program.getListing().getFunctionContaining(call).getName());
-				for(int i = 0; i < func.getParameterCount(); i++) {
-					long value = getParameterValue(func, call, i);
-					System.out.println("param" + (i+1) + " : " + value);
-					String consts = getConstants(func, i, value);
-					if(consts == null || consts.isBlank())
-						continue;
-					updateEquates(call, consts, value);
-				}
+				callers.add(caller);
 			}
+		}
+		
+		try {
+			runDecompilerAnalysis(program, callers, monitor);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		
 		System.out.println("[Ghidra Win32 A] Analysis Compelete");
 		
 		return true;
 	}
+	
+	private void runDecompilerAnalysis(Program program, Collection<Function> functions,
+			TaskMonitor monitor) throws InterruptedException, Exception {
 
+		DecompileConfigurer configurer = decompiler -> setupDecompiler(program, decompiler);
+
+		DecompilerCallback<Void> callback = new DecompilerCallback<Void>(program, configurer) {
+
+			@Override
+			public Void process(DecompileResults results, TaskMonitor m) throws Exception {
+				inspectFunction(program, results, monitor);
+				return null;
+			}
+		};
+
+		try {
+			ParallelDecompiler.decompileFunctions(callback, functions, monitor);
+		}
+		finally {
+			callback.dispose();
+		}
+	}
+	
+	private void creatEquateByHash(String name, long value, long hash, Address refAddr) {
+		EquateTable et = m_program.getEquateTable();
+		Equate equate = null;
+		try {
+			equate = et.createEquate(name, value);
+			
+		} catch (DuplicateNameException e) {
+			equate = et.getEquate(name);
+		} catch (InvalidInputException e) {
+			return;
+		}
+		equate.addReference(hash, refAddr);
+	}
+	
+	private void inspectCallStatement(ClangNode call) {
+		Address callPos = null;
+		String funcName = null;
+		
+		// find func name and call pos
+		int funcNameIdx = 0;
+		for(; funcNameIdx < call.numChildren(); funcNameIdx++) {
+			if(call.Child(funcNameIdx) instanceof ClangFuncNameToken)
+			{
+				funcName = call.Child(funcNameIdx).toString();
+				callPos = call.Child(funcNameIdx).getMinAddress();
+				break;
+			}
+		}
+		if(funcName == null)
+			return;
+		
+		
+		if(!m_database.contains(funcName))
+			return;
+		System.out.println("[Ghidra Win32 A] Analyzing " + funcName + " call at" + callPos);
+		
+
+		int paramCount = 0;
+		for(int i = funcNameIdx+1; i < call.numChildren(); i++) {
+			ClangNode param = call.Child(i);
+			if(param instanceof ClangVariableToken) {
+				paramCount++;
+				
+				// check is constant
+				Varnode convertVn = ((ClangVariableToken) param).getVarnode();
+				if (convertVn == null || !convertVn.isConstant()) 
+					continue;
+				
+				// check equate exist
+				HighSymbol symbol = convertVn.getHigh().getSymbol();
+				EquateSymbol convertSymbol = null;
+				if (symbol != null) {
+					if (symbol instanceof EquateSymbol) {
+						convertSymbol = (EquateSymbol) symbol;
+						int type = convertSymbol.getConvert();
+						if (type == EquateSymbol.FORMAT_DEFAULT) {
+							continue;
+						}
+					}
+					else {
+						continue;		// Something already attached to constant
+					}
+				}
+				
+				// check is number
+				DataType convertDataType = convertVn.getHigh().getDataType();
+				boolean convertIsSigned = false;
+				if (convertDataType instanceof AbstractIntegerDataType) {
+					if (convertDataType instanceof BooleanDataType) {
+						continue;
+					}
+					convertIsSigned = ((AbstractIntegerDataType) convertDataType).isSigned();
+				}
+				else if (convertDataType instanceof Enum) {
+					continue;
+				}
+				
+				// check if replacement exist
+				long value = convertVn.getOffset();
+				String constants = getConstants(funcName, paramCount-1, value);
+				if(constants == null || constants.isBlank())
+					continue;
+				
+				PcodeOp op = convertVn.getLoneDescend();
+				Address convertAddr = op.getSeqnum().getTarget();
+				DynamicHash dynamicHash = new DynamicHash(convertVn, 0);
+				long convertHash = dynamicHash.getHash();
+				
+				if(!updateEquates(callPos, constants, value)) // try fin const in listing
+					creatEquateByHash(constants, value, convertHash, convertAddr);
+				
+				System.out.println("[Ghidra Win32 A] Applied Equate \"" + constants + "\" for " + funcName + " call at " + call.getMinAddress());
+
+			}
+		}
+	}
+
+	private void inspectFunction(Program program, DecompileResults results, TaskMonitor monitor) {
+		// For debug only
+		
+		LinkedList<ClangNode> q = new LinkedList<>();
+		q.add(results.getCCodeMarkup());
+		while(!q.isEmpty()) {
+			ClangNode tok = q.getFirst();q.removeFirst();
+			if(tok instanceof ClangFuncNameToken && !(tok.Parent() instanceof ClangFuncProto)) {
+				inspectCallStatement(tok.Parent());
+			}
+			
+			if(tok.numChildren() > 0) {
+				for(int i = 0; i < tok.numChildren(); i++) {
+					q.addLast(tok.Child(i));
+				}
+			}
+		}
+
+	}
+
+	private void setupDecompiler(Program p, DecompInterface decompiler) {
+		decompiler.toggleCCode(true);
+		decompiler.toggleSyntaxTree(true);
+		decompiler.setSimplificationStyle("decompile");
+		DecompileOptions options = new DecompileOptions();
+		options.grabFromProgram(p);
+		options.setEliminateUnreachable(false);
+		decompiler.setOptions(options);
+	}
 }
