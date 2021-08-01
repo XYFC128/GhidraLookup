@@ -35,6 +35,7 @@ import ghidra.app.plugin.ProgramPlugin;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
+import ghidra.program.util.ProgramLocation;
 import ghidra.util.HelpLocation;
 import resources.Icons;
 
@@ -123,10 +124,19 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 		return new ArrayList<>();
 	}
 	
+	@Override
+	protected void locationChanged(ProgramLocation loc) {
+		super.locationChanged(loc);
+		if(loc instanceof DecompilerLocation) {
+			ClangToken token = ((DecompilerLocation)currentLocation).getToken();
+			if((token instanceof ClangFuncNameToken) && m_database.contains(token.getText())) 
+				provider.openWindowByClicking(token.getText());
+		}
+	}
+	
 	public void showWindow(String token) {
 		provider.openWindowByClicking(token);
 		provider.setVisible(true);
 	}
-
 
 }
