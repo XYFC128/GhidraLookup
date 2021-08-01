@@ -6,6 +6,8 @@ import java.util.*;
 
 import org.json.*;
 
+import ghidra.framework.Application;
+
 public class Win32Data {
 	
 	// a possible constant used in a function parameter
@@ -65,10 +67,12 @@ public class Win32Data {
 		
 		m_functions = new HashMap<String, Function>();
 		
-		loadData("./data/winuser.json");
-		loadData("./data/shellapi.json");
-		loadData("./data/heapapi.json");
-		loadData("./data/processthreadsapi.json");
+		String root_dir = Application.getMyModuleRootDirectory().getAbsolutePath();
+		
+		loadData(root_dir + "/data/winuser.json");
+		loadData(root_dir + "/data/shellapi.json");
+		loadData(root_dir + "/data/heapapi.json");
+		loadData(root_dir + "/data/processthreadsapi.json");
 	}
 	
 	private void loadData(String file_name) {
