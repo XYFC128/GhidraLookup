@@ -1,4 +1,4 @@
-package ghidra_win32;
+package GhidraLookup;
 
 import java.io.*;
 import java.nio.file.*;

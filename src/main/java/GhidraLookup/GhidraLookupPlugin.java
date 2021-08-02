@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ghidra_win32;
+package GhidraLookup;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +26,6 @@ import docking.action.DockingActionIf;
 import docking.action.MenuData;
 import docking.action.ToolBarData;
 import docking.actions.PopupActionProvider;
-import ghidra.app.ExamplesPluginPackage;
 import ghidra.app.decompiler.ClangFuncNameToken;
 import ghidra.app.decompiler.ClangToken;
 import ghidra.app.decompiler.DecompilerLocation;
@@ -45,13 +44,13 @@ import resources.Icons;
 //@formatter:off
 @PluginInfo(
 	status = PluginStatus.STABLE,
-	packageName = ExamplesPluginPackage.NAME,
-	category = PluginCategoryNames.EXAMPLES,
-	shortDescription = "Plugin short description goes here.",
-	description = "Plugin long description goes here."
+	packageName = "GhidraLookupPlugin",
+	category = PluginCategoryNames.COMMON,
+	shortDescription = "Lookip Win API Documentation",
+	description = "The plugin aims to provide support for Win32 API reversing in PE executables."
 )
 //@formatter:on
-public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProvider {
+public class GhidraLookupPlugin extends ProgramPlugin implements PopupActionProvider {
 
 	UIProvider provider;
 	// data
@@ -62,7 +61,7 @@ public class ghidra_win32Plugin extends ProgramPlugin implements PopupActionProv
 	 * @param tool The plugin tool that this plugin is added to.
 	 * @throws IOException 
 	 */
-	public ghidra_win32Plugin(PluginTool tool) {
+	public GhidraLookupPlugin(PluginTool tool) {
 		super(tool, true, true);
 		
 		// TODO: Customize provider (or remove if a provider is not desired)

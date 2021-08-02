@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ghidra_win32;
+package GhidraLookup;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,17 +64,17 @@ import ghidra.util.task.TaskMonitor;
 /**
  * TODO: Provide class-level documentation that describes what this analyzer does.
  */
-public class ghidra_win32Analyzer extends AbstractAnalyzer {
+public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 	
 	private Win32Data m_database;
 	private Program m_program;
 	private TaskMonitor m_monitor;
 	
 
-	public ghidra_win32Analyzer() {
+	public GhidraLookupAnalyzer() {
 
 		// TODO: Name the analyzer and give it a description.
-		super("Win32 API Analyzer", "Analyze Win32 functions", AnalyzerType.BYTE_ANALYZER);
+		super("GhidraLookupAnalyzer", "Analyze Win32 functions", AnalyzerType.BYTE_ANALYZER);
 		m_database = new Win32Data();
 		setPriority(new AnalysisPriority(10000000));
 	}

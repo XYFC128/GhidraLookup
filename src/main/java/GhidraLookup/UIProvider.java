@@ -1,39 +1,27 @@
-package ghidra_win32;
+package GhidraLookup;
 
-import java.awt.BorderLayout;
-import java.awt.Desktop;
 import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
-import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.JTextPane;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
-import org.python.icu.impl.number.Endpoint;
-
 import docking.ComponentProvider;
 import ghidra.framework.plugintool.Plugin;
-import ghidra.util.Msg;
-import ghidra_win32.Win32Data.Constant;
+import GhidraLookup.Win32Data.Constant;
 
 class UIProvider extends ComponentProvider {
 
