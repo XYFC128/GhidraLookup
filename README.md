@@ -1,6 +1,6 @@
-# Ghidra-Win32 Plugin
+# GhidraLookup Plugin
 
-The Ghidra-Win32 plugin aims to provide support for Win32 API reversing in PE executables.
+The GhidraLookup plugin aims to help user to lookup documentation of Win API functions.
 
 ### Usage
 
@@ -12,6 +12,37 @@ Clicking on the option brings up the documentation window. It displays the funct
 
 ![](data/images/usage02.png)
 
+### Build
+
+1. Install [Ghidra](https://ghidra-sre.org/InstallationGuide.html)
+
+2.  Install `Eclipse IDE for C/C++ Developers` [Download](https://www.eclipse.org/downloads/packages/)
+    
+3.  Install PyDev
+    
+    - select **Help** \> **Install New Software** and enter the following link in the **Work with** section: `http://www.pydev.org/updates`
+
+4.  Install GhidraDev
+    
+    - Browse to **Help -> Install New Software**
+    - Click the **Add** button and then click **Archive**
+    - Browse the Ghidra directory **&lt;path&gt;/Ghidra/Extensions/Eclipse/GhidraDev/**, select **GhidraDev-2.x.x.zip**.
+    - Click **OK -> Check Ghidra** category
+    - Click **Next -> Next -> Finish**
+    - Make sure to click **Install anyway** and click **Restart Now**.
+    - After restart Eclipse, browse to **GhidraDev** -> **Preferences** -> **Ghidra Installations**
+    - Add your Ghidra Installation Directory
+
+5. Use Eclipse open this project
+    - **File** -> **Open Project From File System**
+    - Enter the project directory in the **Import source** section
+    - In the **Package Explorer** right click on this project -> **GhidraDev** -> **Link Ghidra**
+
+6. Create new Launch Configuration
+    - **Launch Mode** : Run
+    - **Launch Configuration Type** : Ghidra
+7. Launch
+    - In Ghidra Code Browser **File** -> **Configure** -> **Configure All Plugins** select **GhidraLookupPlugin**
 
 ### Todo
 
