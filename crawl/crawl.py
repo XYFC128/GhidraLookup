@@ -6,6 +6,7 @@ import json
 
 domain = "https://docs.microsoft.com"
 
+# update this list and run this script to update .json files
 paths = {
 	"shellapi" :          "/en-us/windows/win32/api/shellapi/",
 	"winuser"  :          "/en-us/windows/win32/api/winuser/",
@@ -28,9 +29,7 @@ def get_suffix_num(s):
 		i -= 1
 	return s[i+1:] if i < len(s) - 1 else ""
 
-def num_child_tags(i):
-	return len(i.find_all())
-
+# as BeautifulSoup does not provide this functionality, we implement this ourselves
 def sibling_tag(i):
 	i = i.next_sibling
 	while i and not isinstance(i, element.Tag):
@@ -44,7 +43,8 @@ def request_site(site):
 	print("[*] requested {}:".format(site))
 	return BeautifulSoup(req.text, 'html.parser')
 
-function_limit = 99990 # limit functions
+# function fetch limit
+function_limit = 99990
 
 def fetch_function(site, f_name):
 	global function_limit
@@ -145,23 +145,14 @@ def fetch_function(site, f_name):
 			param_data["description"] = p_desc.strip()
 			func_data["parameters"].append(param_data)
 		data["functions"].append(func_data)
-	except None: #AttributeError:
+	except AttributeError:
 		function_limit = 0
 		print("[!] Function Fetch Failed")
 		return
 
+# this script is meant to be run from the root directory:
+#   python3 ./crawl/crawl.py
 def main():
-	# test fetches
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createsyntheticpointerdevice', "CreateSyntheticPointerDevice")
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxa', 'MessageBoxA')
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-wvsprintfa', 'wvsprintfA')
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-changedisplaysettingsa', 'ChangeDisplaySettingsA')
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-deferwindowpos', 'DeferWindowPos')
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow', 'ShowWindow')
-	# fetch_function('https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxexa', 'MessageBoxExA')
-	# with open("./data/test.json", "w") as f:
-	# 	f.write(json.dumps(data))
-	# return
 	for file, path in paths.items():
 		soup = request_site(domain + path)
 		m = soup.find("main", {"id":"main"})
