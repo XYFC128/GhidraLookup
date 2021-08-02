@@ -1,6 +1,6 @@
 # GhidraLookup Plugin
 
-The GhidraLookup plugin aims to help user to lookup documentation of Win API functions.
+The GhidraLookup plugin aims to help user lookup documentations of Win API functions.
 
 ## Usage
 
