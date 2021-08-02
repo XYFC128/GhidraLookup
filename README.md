@@ -2,7 +2,7 @@
 
 The GhidraLookup plugin aims to help user to lookup documentation of Win API functions.
 
-### Usage
+## Usage
 
 Right click on a Function in the *Decompile Window*, if the function is part of the Win32 API, the option `Lookup Win32 Documentation` would be available.
 
@@ -12,7 +12,14 @@ Clicking on the option brings up the documentation window. It displays the funct
 
 ![](data/images/usage02.png)
 
-### Build
+## Installation
+
+1. [Download](https://github.com/XYFC128/GhidraLookup/releases) this plugin.
+2. Move .zip file to `<Your Ghidra Installation Directory>/Extensions/Ghidra/`
+3. In Ghidra : **File** -> **Install Extensions** -> check **GhidraLookup**
+4. Restart Ghidra
+
+## Build
 
 1. Install [Ghidra](https://ghidra-sre.org/InstallationGuide.html)
 
