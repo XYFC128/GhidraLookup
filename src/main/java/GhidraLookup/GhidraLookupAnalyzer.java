@@ -99,6 +99,41 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		options.registerOption("Equates Separator", " | ", null, "If there are multiple Equates match same value, they will be separated by this separator.");
 	}
 	
+	@Override
+	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
+			throws CancelledException {
+		System.out.println("[Ghidra Win32 A] Starting Analysis...");
+		
+		m_program = program;
+		m_monitor = monitor;
+		
+		HashSet<Function> callers = new HashSet<>();
+		
+		for(Function func : getFuncs()) {
+			ArrayList<Address> calls = getCalls(func);
+			for(Address call : calls) {
+				Function caller = m_program.getListing().getFunctionContaining(call);
+				if(caller == null)
+					continue;
+				callers.add(caller);
+			}
+		}
+		
+		try {
+			runDecompilerAnalysis(program, callers, monitor);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println("[Ghidra Win32 A] Analysis Compelete");
+		
+		return true;
+	}
+	
 	private ArrayList<Function> getFuncs() {
 		ArrayList<Function> funcs = new ArrayList<>();
 		String[] support_dlls = {
@@ -141,7 +176,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		return calls;
 	}
 	
-	public String getConstants(String func_name, int nth_param, long value) {
+	private String getConstants(String func_name, int nth_param, long value) {
 		if(value == -1)
 			return null;
 		String param_name = m_database.getNthParameterName(func_name, nth_param);
@@ -169,11 +204,11 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		return constants_str;
 	}
 	
-	public String getConstants(Function func, int nth_param, long value){
+	private String getConstants(Function func, int nth_param, long value){
 		return getConstants(func.getName(), nth_param, value);
 	}
 	
-	public Boolean updateEquates(Address call, String constants, long value) {
+	private Boolean updateEquates(Address call, String constants, long value) {
 		if(value == -1)
 			return false;
 		Instruction inst = m_program.getListing().getInstructionAt(call);
@@ -210,41 +245,6 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 			return;
 		}
 		equate.addReference(hash, refAddr);
-	}
-
-	@Override
-	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
-			throws CancelledException {
-		System.out.println("[Ghidra Win32 A] Starting Analysis...");
-		
-		m_program = program;
-		m_monitor = monitor;
-		
-		HashSet<Function> callers = new HashSet<>();
-		
-		for(Function func : getFuncs()) {
-			ArrayList<Address> calls = getCalls(func);
-			for(Address call : calls) {
-				Function caller = m_program.getListing().getFunctionContaining(call);
-				if(caller == null)
-					continue;
-				callers.add(caller);
-			}
-		}
-		
-		try {
-			runDecompilerAnalysis(program, callers, monitor);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		System.out.println("[Ghidra Win32 A] Analysis Compelete");
-		
-		return true;
 	}
 	
 	private void runDecompilerAnalysis(Program program, Collection<Function> functions,
