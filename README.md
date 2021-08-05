@@ -2,6 +2,26 @@
 
 The GhidraLookup plugin aims to help user lookup documentations of Win API functions.
 
+## Features
+
+### Analyzer
+
+![](data/images/Analyzer.png)
+
+GhidraLookupAnalyzer can analyze every Win32 API calls and sets Equates to constants.
+
+- Before
+
+![](data/images/analyzer_before.png)
+
+- After
+
+![](data/images/analyzer_after.png)
+
+### Documentation Lookup
+
+![](data/images/main_ui.png)
+
 ## Usage
 
 Right click on a Function in the *Decompile Window*, if the function is part of the Win32 API, the option `Lookup Win32 Documentation` would be available.
