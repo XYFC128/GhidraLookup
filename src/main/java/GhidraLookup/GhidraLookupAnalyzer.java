@@ -84,7 +84,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 
 		// TODO: Return true if analyzer should be enabled by default
 
-		return false;
+		return true;
 	}
 
 	@Override
@@ -196,6 +196,19 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		return done;
 	}
 	
+	private void updateEquatesByHash(String name, long value, long hash, Address refAddr) {
+		EquateTable et = m_program.getEquateTable();
+		Equate equate = null;
+		try {
+			equate = et.createEquate(name, value);
+			
+		} catch (DuplicateNameException e) {
+			equate = et.getEquate(name);
+		} catch (InvalidInputException e) {
+			return;
+		}
+		equate.addReference(hash, refAddr);
+	}
 
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
@@ -253,21 +266,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 			callback.dispose();
 		}
 	}
-	
-	private void creatEquateByHash(String name, long value, long hash, Address refAddr) {
-		EquateTable et = m_program.getEquateTable();
-		Equate equate = null;
-		try {
-			equate = et.createEquate(name, value);
-			
-		} catch (DuplicateNameException e) {
-			equate = et.getEquate(name);
-		} catch (InvalidInputException e) {
-			return;
-		}
-		equate.addReference(hash, refAddr);
-	}
-	
+		
 	private void inspectCallStatement(ClangNode call) {
 		Address callPos = null;
 		String funcName = null;
@@ -292,7 +291,8 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		
 
 		int paramCount = 0;
-		for(int i = funcNameIdx+1; i < call.numChildren(); i++) {
+		int paramCountMax = m_database.getNumParameter(funcName);
+		for(int i = funcNameIdx+1; i < call.numChildren() && paramCount < paramCountMax; i++) {
 			ClangNode param = call.Child(i);
 			if(param instanceof ClangVariableToken) {
 				paramCount++;
@@ -343,7 +343,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 				long convertHash = dynamicHash.getHash();
 				
 				if(!updateEquates(callPos, constants, value)) // try fin const in listing
-					creatEquateByHash(constants, value, convertHash, convertAddr);
+					updateEquatesByHash(constants, value, convertHash, convertAddr);
 				
 				System.out.println("[Ghidra Win32 A] Applied Equate \"" + constants + "\" for " + funcName + " call at " + call.getMinAddress());
 
