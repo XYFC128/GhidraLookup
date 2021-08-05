@@ -69,6 +69,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 	private Win32Data m_database;
 	private Program m_program;
 	private TaskMonitor m_monitor;
+	private Options m_options;
 	
 
 	public GhidraLookupAnalyzer() {
@@ -94,7 +95,8 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 
 	@Override
 	public void registerOptions(Options options, Program program) {
-		// options.registerOption("Option name goes here", false, null, "Option description goes here");
+		m_options = options;
+		options.registerOption("Equates Separator", " | ", null, "If there are multiple Equates match same value, they will be separated by this separator.");
 	}
 	
 	private ArrayList<Function> getFuncs() {
@@ -160,7 +162,7 @@ public class GhidraLookupAnalyzer extends AbstractAnalyzer {
 		
 		for(String con : constants) {
 			if(!constants_str.isBlank())
-				constants_str += " | ";
+				constants_str += m_options.getString("Equates Separator", " | ");
 			constants_str += con;
 		}
 		
